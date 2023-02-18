@@ -28,11 +28,11 @@ data Term
   = VarTerm VarTerm
   | AppTerm AppTerm
   | LamTerm LamTerm
-  | LetTerm LetTerm
+  | DefTerm DefTerm
   | BufTerm BufTerm
-  | DataTerm DataTerm
+  | DatTerm DatTerm
   | TypeChangeTerm TypeChangeTerm
-  | TypeChangeCtxTerm ChangeCtx Term
+  | TypeChangeCtxTerm ChangeCtxTerm
   | HoleTerm HoleTerm
 
 type VarTerm
@@ -44,10 +44,10 @@ type AppTerm
 type LamTerm
   = { termVar :: TermVar, sig :: Type, bod :: Term }
 
-type LetTerm
+type DefTerm
   = { termVar :: TermVar, sig :: PolyType, imp :: Term, bod :: Term }
 
-type DataTerm
+type DatTerm
   = { typeVar :: TypeVar, params :: List Type, constrs :: List Constr, bod :: Term }
 
 type BufTerm
