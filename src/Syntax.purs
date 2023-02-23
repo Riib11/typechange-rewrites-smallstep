@@ -57,6 +57,9 @@ data Type
 
 derive instance genericType :: Generic Type _
 
+instance eqType :: Eq Type where
+  eq x y = genericEq x y
+
 instance showType :: Show Type where
   show x = genericShow x
 
@@ -238,6 +241,14 @@ instance showCtxChange :: Show CtxChange where
 type TermVarCtxChange
   = { termVar :: TermVar, termVarChange :: TermVarChange }
 
+invertCtxChange :: CtxChange -> CtxChange
+invertCtxChange = case _ of
+  TermVarCtxChange tmvarch ->
+    TermVarCtxChange
+      { termVar: tmvarch.termVar
+      , termVarChange: invertTermVarChange tmvarch.termVarChange
+      }
+
 -- | TermVarChange
 data TermVarChange
   = TypeChangeTermVarChange TypeChange
@@ -248,6 +259,12 @@ derive instance genericTermVarChange :: Generic TermVarChange _
 
 instance showTermVarChange :: Show TermVarChange where
   show x = genericShow x
+
+invertTermVarChange :: TermVarChange -> TermVarChange
+invertTermVarChange = case _ of
+  TypeChangeTermVarChange tych -> TypeChangeTermVarChange $ invertTypeChange tych
+  DeleteVarChange pty -> InsertVarChange pty
+  InsertVarChange pty -> DeleteVarChange pty
 
 -- | TypeVar
 newtype TypeVar

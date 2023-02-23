@@ -5,13 +5,15 @@ import Syntax
 import Change (changePolyType, changeType)
 import Control.Monad.Except (ExceptT)
 import Data.Array (foldM, reverse, singleton, uncons, (:))
+import Data.Identity (Identity)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Fixpoint (fixpointM)
 import Utility (arrayuncurry1, arrayuncurry2)
 
+-- TODO: maybe add effects later?
 type RewriteM a
-  = ExceptT String Effect a
+  = Identity a
 
 -- | Rule: the type of rewrite rules over terms
 type Rule
@@ -202,19 +204,11 @@ system =
       _ -> pure Nothing
   ]
 
-{-
-↓{a}(ξ : alpha -> beta) --> buf a : A in ? : B
-  TypeChangeTerm { tych: { dir: Down, pre: ReplaceTypeChange { old: alpha } }, bod } -> Just $ BufTerm { sig: old, imp: bod, bod: freshHoleTerm unit }
--}
 fixpointSystem :: Term -> RewriteM Term
 fixpointSystem =
   fixpointM
     ( foldM
         ( \m_mb_tm k tm -> do
-            -- k1 tm
-            --   >>= case _ of
-            --       Nothing -> ?A
-            --       Just tm' -> ?a
             m_mb_tm
               >>= case _ of
                   Just _ -> m_mb_tm
