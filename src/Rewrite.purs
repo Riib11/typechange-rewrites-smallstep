@@ -180,9 +180,7 @@ system =
         let x : α' = ↑{a}[α ~[ξ]~> α'] in b ~~~>
         let x : ↓{α'}[α' ~[ξⁱ]~> α] = a in ↓{b}[x : α' ~[ξⁱ]~> α]
       -}
-      def@(DefTerm { termVar: x, sig: alpha, imp: TypeChangeTerm { dir: Up, tych, bod: a }, bod: b }) -> do
-        let
-          beta = infer def
+      DefTerm { termVar: x, sig: alpha, imp: TypeChangeTerm { dir: Up, tych, bod: a }, bod: b } -> do
         pure $ Just
           $ DefTerm
               { termVar: x
