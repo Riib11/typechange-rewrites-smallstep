@@ -12,13 +12,16 @@ to generate this file without the comments in this block.
 -}
 { name = "my-project"
 , dependencies =
-  [ "arrays"
+  [ "aff"
+  , "arrays"
   , "console"
   , "effect"
   , "exceptions"
   , "foldable-traversable"
   , "halogen"
+  , "halogen-subscriptions"
   , "identity"
+  , "lazy"
   , "lists"
   , "maybe"
   , "newtype"
@@ -29,6 +32,9 @@ to generate this file without the comments in this block.
   , "transformers"
   , "tuples"
   , "uuid"
+  , "web-events"
+  , "web-html"
+  , "web-uievents"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]

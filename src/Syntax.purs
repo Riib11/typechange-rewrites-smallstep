@@ -15,7 +15,7 @@ import Data.UUID (UUID, genUUID)
 import Data.UUID as UUID
 import Effect.Exception.Unsafe (unsafeThrow)
 import Effect.Unsafe (unsafePerformEffect)
-import Utility (showUUID, unimplemented)
+import Utility (impossible, showUUID, unimplemented)
 
 -- | Kind
 newtype Kind
@@ -86,6 +86,7 @@ data Term
   | DefTerm DefTerm
   | BufTerm BufTerm
   | DatTerm DatTerm
+  | TopTerm TopTerm
   | TypeChangeTerm TypeChangeTerm
   | CtxChangeTerm CtxChangeTerm
   | HoleTerm HoleTerm
@@ -99,7 +100,7 @@ type VarTerm
   = { termVar :: TermVar, argTys :: List Type, ty :: Type }
 
 type AppTerm
-  = { apl :: Term, arg :: Term, ty :: Type }
+  = { apl :: Term, arg :: Term }
 
 type LamTerm
   = { termVar :: TermVar, dom :: Type, bod :: Term }
@@ -109,6 +110,9 @@ type DefTerm
 
 type DatTerm
   = { typeVar :: TypeVar, params :: List TypeVar, constrs :: List Constr, bod :: Term }
+
+type TopTerm
+  = { sig :: Type, bod :: Term }
 
 type BufTerm
   = { sig :: Type, imp :: Term, bod :: Term }
@@ -128,7 +132,9 @@ freshHoleTerm ty = HoleTerm { termHole: freshTermHole unit, ty }
 infer :: Term -> Type
 infer (VarTerm var) = var.ty
 
-infer (AppTerm app) = app.ty
+infer (AppTerm app) = case infer app.apl of
+  ArrType { cod } -> cod
+  _ -> impossible $ "infer: apl does not have function type"
 
 infer (LamTerm lam) = ArrType { dom: lam.dom, cod: infer lam.bod }
 
@@ -137,6 +143,8 @@ infer (DefTerm def) = infer def.bod
 infer (BufTerm buf) = infer buf.bod
 
 infer (DatTerm dat) = infer dat.bod
+
+infer (TopTerm top) = infer top.bod
 
 infer (TypeChangeTerm tych) = typeChangeCodomain tych.tych
 
@@ -277,7 +285,7 @@ derive newtype instance eqTypeVar :: Eq TypeVar
 derive newtype instance ordTypeVar :: Ord TypeVar
 
 instance showTypeVar :: Show TypeVar where
-  show (MakeTypeVar uuid) = "?" <> showUUID uuid
+  show (MakeTypeVar uuid) = showUUID uuid
 
 freshTypeVar :: Unit -> TypeVar
 freshTypeVar _ = unsafePerformEffect $ MakeTypeVar <$> genUUID
@@ -293,7 +301,7 @@ derive newtype instance eqTermVar :: Eq TermVar
 derive newtype instance ordTermVar :: Ord TermVar
 
 instance showTermVar :: Show TermVar where
-  show (MakeTermVar uuid) = "?" <> showUUID uuid
+  show (MakeTermVar uuid) = showUUID uuid
 
 freshTermVar :: Unit -> TermVar
 freshTermVar _ = unsafePerformEffect $ MakeTermVar <$> genUUID
@@ -347,3 +355,14 @@ type Ctx
     , instances :: Map.Map TypeVar Type -- monomorphization
     , constructors :: Map.Map TypeVar (List TermVar)
     }
+
+-- | initialTerm
+initialTerm :: Term
+initialTerm =
+  let
+    alpha = freshHoleType unit
+  in
+    TopTerm
+      { sig: alpha
+      , bod: freshHoleTerm alpha
+      }

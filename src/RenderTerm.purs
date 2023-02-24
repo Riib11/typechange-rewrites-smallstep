@@ -1,9 +1,12 @@
 module RenderTerm where
 
+import Model
 import Prelude
+import Edits
 import Prim hiding (Type)
 import Syntax
 import Data.Array as Array
+import Data.Lazy (Lazy, defer)
 import Data.List as List
 import Effect (Effect)
 import Effect.Exception.Unsafe (unsafeThrow)
@@ -16,49 +19,64 @@ import Halogen.VDom.Driver (runUI)
 import Utility (unimplemented)
 
 -- w = (H.ComponentSlot slots m action)
-term (VarTerm var) =
-  HH.div [ HP.class_ (HH.ClassName "VarTerm") ]
+term ∷ forall w. (Term -> Term) -> Term → HH.HTML w Action
+term path tm@(VarTerm var) =
+  HH.div
+    [ HP.class_ (HH.ClassName "node VarTerm")
+    , HE.onClick \evt -> SetEditsAction evt $ editsVar path tm
+    ]
     [ HH.div [ HP.class_ (HH.ClassName "VarTerm-termVar") ] [ termVar var.termVar ]
     , angles [ HP.class_ (HH.ClassName "VarTerm-argTys") ]
         (typ <$> List.toUnfoldable var.argTys)
     ]
 
-term (AppTerm app) =
-  HH.div [ HP.class_ (HH.ClassName "AppTerm") ]
-    [ HH.div [ HP.class_ (HH.ClassName "AppTerm-apl") ] [ term app.apl ]
+term path tm@(AppTerm app) =
+  parens
+    [ HP.class_ (HH.ClassName "node AppTerm")
+    , HE.onClick \evt -> SetEditsAction evt $ editsApp path tm
+    ]
+    [ HH.div [ HP.class_ (HH.ClassName "AppTerm-apl") ] [ term (path <<< AppTerm <<< app { apl = _ }) app.apl ]
     , space
-    , HH.div [ HP.class_ (HH.ClassName "AppTerm-arg") ] [ term app.arg ]
+    , HH.div [ HP.class_ (HH.ClassName "AppTerm-arg") ] [ term (path <<< AppTerm <<< app { arg = _ }) app.arg ]
     ]
 
-term (LamTerm lam) =
-  HH.div [ HP.class_ (HH.ClassName "LamTerm") ]
+term path tm@(LamTerm lam) =
+  parens
+    [ HP.class_ (HH.ClassName "node LamTerm")
+    , HE.onClick \evt -> SetEditsAction evt $ editsLam path tm
+    ]
     [ lambda
     , HH.div [ HP.class_ (HH.ClassName "LamTerm-termVar") ] [ termVar lam.termVar ]
     , colon
     , HH.div [ HP.class_ (HH.ClassName "LamTerm-dom") ] [ typ lam.dom ]
     , mapsto
-    , HH.div [ HP.class_ (HH.ClassName "LamTerm-bod") ] [ term lam.bod ]
+    , HH.div [ HP.class_ (HH.ClassName "LamTerm-bod") ] [ term (path <<< LamTerm <<< lam { bod = _ }) lam.bod ]
     ]
 
-term (DefTerm def) =
-  HH.div [ HP.class_ (HH.ClassName "DefTerm") ]
+term path tm@(DefTerm def) =
+  parens
+    [ HP.class_ (HH.ClassName "node DefTerm")
+    , HE.onClick \evt -> SetEditsAction evt $ editsDef path tm
+    ]
     [ let_
     , HH.div [ HP.class_ (HH.ClassName "DefTerm-termVar") ] [ termVar def.termVar ]
     , colon
     , HH.div [ HP.class_ (HH.ClassName "DefTerm-sig") ] [ polyType def.sig ]
     , equal
-    , HH.div [ HP.class_ (HH.ClassName "DefTerm-imp") ] [ term def.imp ]
+    , HH.div [ HP.class_ (HH.ClassName "DefTerm-imp") ] [ term (path <<< DefTerm <<< def { imp = _ }) def.imp ]
     , in_
-    , HH.div [ HP.class_ (HH.ClassName "DefTerm-bod") ] [ term def.bod ]
+    , HH.div [ HP.class_ (HH.ClassName "DefTerm-bod") ] [ term (path <<< DefTerm <<< def { bod = _ }) def.bod ]
     ]
 
-term (BufTerm buf) =
-  HH.div
-    [ HP.class_ (HH.ClassName "BufTerm") ]
+term path tm@(BufTerm buf) =
+  parens
+    [ HP.class_ (HH.ClassName "node BufTerm")
+    , HE.onClick \evt -> SetEditsAction evt $ editsBuf path tm
+    ]
     [ buf_
     , HH.div
         [ HP.class_ (HH.ClassName "BufTerm-imp") ]
-        [ term buf.imp ]
+        [ term (path <<< BufTerm <<< buf { imp = _ }) buf.imp ]
     , colon
     , HH.div
         [ HP.class_ (HH.ClassName "BufTerm-sig") ]
@@ -66,12 +84,14 @@ term (BufTerm buf) =
     , in_
     , HH.div
         [ HP.class_ (HH.ClassName "BufTerm-bod") ]
-        [ term buf.bod ]
+        [ term (path <<< BufTerm <<< buf { bod = _ }) buf.bod ]
     ]
 
-term (DatTerm dat) =
-  HH.div
-    [ HP.class_ (HH.ClassName "DatTerm") ]
+term path tm@(DatTerm dat) =
+  parens
+    [ HP.class_ (HH.ClassName "node DatTerm")
+    , HE.onClick \evt -> SetEditsAction evt $ editsDat path tm
+    ]
     [ data_
     , HH.div
         [ HP.class_ (HH.ClassName "DatTerm-typeVar") ]
@@ -85,35 +105,61 @@ term (DatTerm dat) =
         $ verticals (constr <$> List.toUnfoldable dat.constrs)
     , in_
     , HH.div
-        [ HP.class_ (HH.ClassName "datTerm-bod") ]
-        [ term dat.bod ]
+        [ HP.class_ (HH.ClassName "DatTerm-bod") ]
+        [ term (path <<< DatTerm <<< dat { bod = _ }) dat.bod ]
     ]
 
-term (TypeChangeTerm tych) =
+term path tm@(TopTerm top) =
   HH.div
-    [ HP.class_ (HH.ClassName "TypeChangeTerm") ]
+    [ HP.class_ (HH.ClassName "node TopTerm")
+    , HE.onClick \evt -> SetEditsAction evt $ editsTop path tm
+    ]
     [ HH.div
+        [ HP.class_ (HH.ClassName "TopTerm-bod") ]
+        [ term (path <<< TopTerm <<< top { bod = _ }) top.bod ]
+    , colon
+    , HH.div
+        [ HP.class_ (HH.ClassName "TopTerm-sig") ]
+        [ typ top.sig ]
+    ]
+
+term path tm@(TypeChangeTerm tych) =
+  HH.div
+    [ HP.class_ (HH.ClassName "node TypeChangeTerm")
+    , HE.onClick \evt -> SetEditsAction evt $ editsTypeChange path tm
+    ]
+    [ case tych.dir of
+        Down -> downarrow
+        Up -> uparrow
+    , HH.div
+        [ HP.class_ (HH.ClassName "TypeChangeTerm-bod") ]
+        [ term (path <<< TypeChangeTerm <<< tych { bod = _ }) tych.bod ]
+    , HH.div
         [ HP.class_ (HH.ClassName "TypeChangeTerm-tych") ]
         [ typeChange tych.tych ]
-    , braces
-        [ HP.class_ (HH.ClassName "TypeChangeTerm-bod") ]
-        [ term tych.bod ]
     ]
 
-term (CtxChangeTerm ctxch) =
+term path tm@(CtxChangeTerm ctxch) =
   HH.div
-    [ HP.class_ (HH.ClassName "CtxChangeTerm") ]
-    [ HH.div
+    [ HP.class_ (HH.ClassName "node CtxChangeTerm")
+    , HE.onClick \evt -> SetEditsAction evt $ editsCtxChange path tm
+    ]
+    [ case ctxch.dir of
+        Down -> downarrow
+        Up -> uparrow
+    , HH.div
         [ HP.class_ (HH.ClassName "CtxChangeTerm-ctxch") ]
         [ ctxChange ctxch.ctxch ]
-    , braces
+    , HH.div
         [ HP.class_ (HH.ClassName "CtxChangeTerm-bod") ]
-        [ term ctxch.bod ]
+        [ term (path <<< CtxChangeTerm <<< ctxch { bod = _ }) ctxch.bod ]
     ]
 
-term (HoleTerm hole) =
+term path tm@(HoleTerm hole) =
   HH.div
-    [ HP.class_ (HH.ClassName "HoleTerm") ]
+    [ HP.class_ (HH.ClassName "node HoleTerm")
+    , HE.onClick \evt -> SetEditsAction evt $ editsHole path tm
+    ]
     [ HH.div
         [ HP.class_ (HH.ClassName "HoleTerm-hole") ]
         [ termHole hole.termHole ]
@@ -125,7 +171,7 @@ term (HoleTerm hole) =
 
 polyType (PolyType pty) =
   HH.div
-    [ HP.class_ (HH.ClassName "PolyType") ]
+    [ HP.class_ (HH.ClassName "node PolyType") ]
     [ forall_
     , HH.div
         [ HP.class_ (HH.ClassName "PolyType-params") ]
@@ -139,7 +185,7 @@ polyType (PolyType pty) =
 typ = case _ of
   NeuType neu ->
     HH.div
-      [ HP.class_ (HH.ClassName "NeuType") ]
+      [ HP.class_ (HH.ClassName "node NeuType") ]
       [ HH.div
           [ HP.class_ (HH.ClassName "NeuType-typeVar") ]
           [ typeVar neu.typeVar ]
@@ -148,18 +194,19 @@ typ = case _ of
           $ commas (typ <$> List.toUnfoldable neu.args)
       ]
   ArrType arr ->
-    HH.div
-      [ HP.class_ (HH.ClassName "ArrType") ]
+    parens
+      [ HP.class_ (HH.ClassName "node ArrType") ]
       [ HH.div
           [ HP.class_ (HH.ClassName "ArrType-dom") ]
           [ typ arr.dom ]
+      , arrow
       , HH.div
           [ HP.class_ (HH.ClassName "ArrType-cod") ]
           [ typ arr.cod ]
       ]
   HoleType hole ->
     HH.div
-      [ HP.class_ (HH.ClassName "HoleType") ]
+      [ HP.class_ (HH.ClassName "node HoleType") ]
       [ HH.div
           [ HP.class_ (HH.ClassName "HoleType-typeHole") ]
           [ typeHole hole.typeHole ]
@@ -167,7 +214,7 @@ typ = case _ of
 
 constr (Constr constr) =
   HH.div
-    [ HP.class_ (HH.ClassName "Constr") ]
+    [ HP.class_ (HH.ClassName "node Constr") ]
     [ HH.div
         [ HP.class_ (HH.ClassName "Constr-termVar") ]
         [ termVar constr.termVar ]
@@ -178,8 +225,8 @@ constr (Constr constr) =
 
 typeChange = case _ of
   ArrTypeChange arr ->
-    HH.div
-      [ HP.class_ (HH.ClassName "ArrTypeChange") ]
+    parens
+      [ HP.class_ (HH.ClassName "node ArrTypeChange") ]
       [ HH.div
           [ HP.class_ (HH.ClassName "ArrTypeChange-dom") ]
           [ typeChange arr.dom ]
@@ -188,19 +235,24 @@ typeChange = case _ of
           [ HP.class_ (HH.ClassName "ArrTypeChange-cod") ]
           [ typeChange arr.cod ]
       ]
-  ReplaceTypeChange rep ->
-    HH.div
-      [ HP.class_ (HH.ClassName "ReplaceTypeChange") ]
-      [ HH.div
-          [ HP.class_ (HH.ClassName "ReplaceTypeChange-old") ]
-          [ typ rep.old ]
-      , HH.div
-          [ HP.class_ (HH.ClassName "ReplaceTypeChange-new") ]
-          [ typ rep.new ]
-      ]
+  ReplaceTypeChange rep
+    | rep.old == rep.new ->
+      HH.div [ HP.class_ (HH.ClassName "node IdentityTypeChange") ]
+        [ HH.div [ HP.class_ (HH.ClassName "IdentityTypeChange") ] [ typ rep.new ] ]
+    | otherwise ->
+      parens
+        [ HP.class_ (HH.ClassName "node ReplaceTypeChange") ]
+        [ HH.div
+            [ HP.class_ (HH.ClassName "ReplaceTypeChange-old") ]
+            [ typ rep.old ]
+        , squigarrow
+        , HH.div
+            [ HP.class_ (HH.ClassName "ReplaceTypeChange-new") ]
+            [ typ rep.new ]
+        ]
   ArrowPlusTypeChange plus ->
-    HH.div
-      [ HP.class_ (HH.ClassName "ArrowPlusTypeChange") ]
+    parens
+      [ HP.class_ (HH.ClassName "node ArrowPlusTypeChange") ]
       [ plus_
       , HH.div
           [ HP.class_ (HH.ClassName "ArrowPlusTypeChange-dom") ]
@@ -211,8 +263,8 @@ typeChange = case _ of
           [ typeChange plus.bod ]
       ]
   ArrowMinusTypeChange minus ->
-    HH.div
-      [ HP.class_ (HH.ClassName "ArrowMinusTypeChange") ]
+    parens
+      [ HP.class_ (HH.ClassName "node ArrowMinusTypeChange") ]
       [ minus_
       , HH.div
           [ HP.class_ (HH.ClassName "ArrowMinusTypeChange-dom") ]
@@ -226,51 +278,64 @@ typeChange = case _ of
 ctxChange = case _ of
   TermVarCtxChange tmvarctxch -> case tmvarctxch.termVarChange of
     TypeChangeTermVarChange tych ->
-      HH.div
+      brackets
         [ HP.classes (map HH.ClassName [ "TermVarCtxChange", "TypeChangeTermVarChange" ]) ]
         [ HH.div
             [ HP.classes (map HH.ClassName [ "TermVarCtxChange", "TermVarCtxChange-termVar" ]) ]
             [ termVar tmvarctxch.termVar ]
+        , colon
         , HH.div
             [ HP.classes (map HH.ClassName [ "TermVarCtxChange", "TypeChangeTermVarChange-tych" ]) ]
             [ typeChange tych ]
         ]
     DeleteVarChange pty ->
-      HH.div
+      brackets
         [ HP.classes (map HH.ClassName [ "TermVarCtxChange", "TypeChangeTermVarChange" ]) ]
         [ HH.div
             [ HP.classes (map HH.ClassName [ "TermVarCtxChange", "TermVarCtxChange-termVar" ]) ]
             [ termVar tmvarctxch.termVar ]
+        , colon
+        , minus_
         , HH.div
             [ HP.classes (map HH.ClassName [ "TermVarCtxChange", "DeleteVarChange-polyType" ]) ]
             [ polyType pty ]
         ]
     InsertVarChange pty ->
-      HH.div
+      brackets
         [ HP.classes (map HH.ClassName [ "TermVarCtxChange", "TypeChangeTermVarChange" ]) ]
         [ HH.div
             [ HP.classes (map HH.ClassName [ "TermVarCtxChange", "TermVarCtxChange-termVar" ]) ]
             [ termVar tmvarctxch.termVar ]
+        , colon
+        , plus_
         , HH.div
             [ HP.classes (map HH.ClassName [ "TermVarCtxChange", "InsertVarChange-polyType" ]) ]
             [ polyType pty ]
         ]
 
-typeVar tyVar = HH.div [ HP.class_ (HH.ClassName "TypeVar") ] [ HH.text (show tyVar) ]
+typeVar tyVar = HH.div [ HP.class_ (HH.ClassName "node TypeVar") ] [ HH.text (show tyVar) ]
 
-termVar tmVar = HH.div [ HP.class_ (HH.ClassName "TermVar") ] [ HH.text (show tmVar) ]
+termVar tmVar = HH.div [ HP.class_ (HH.ClassName "node TermVar") ] [ HH.text (show tmVar) ]
 
-termHole tmHole = HH.div [ HP.class_ (HH.ClassName "TermHole") ] [ HH.text "?" ]
+termHole tmHole = HH.div [ HP.class_ (HH.ClassName "node TermHole") ] [ HH.text "?" ]
 
-typeHole tyHole = HH.div [ HP.class_ (HH.ClassName "TypeHole") ] [ HH.text (show tyHole) ]
+typeHole tyHole = HH.div [ HP.class_ (HH.ClassName "node TypeHole") ] [ HH.text (show tyHole) ]
 
 angles props hs = HH.div props $ [ langle ] <> hs <> [ rangle ]
 
 braces props hs = HH.div props $ [ lbrace ] <> hs <> [ rbrace ]
 
-parens props hs = HH.div props $ [ lparen ] <> hs <> [ rparen ]
+-- parens props hs = HH.div props $ [ lparen ] <> hs <> [ rparen ]
+parens props hs =
+  HH.div
+    [ HP.class_ (HH.ClassName "parens") ]
+    [ HH.div props hs ]
 
-brackets props hs = HH.div props $ [ lbrak ] <> hs <> [ rbrak ]
+-- brackets props hs = HH.div props $ [ lbrak ] <> hs <> [ rbrak ]
+brackets props hs =
+  HH.div
+    [ HP.class_ (HH.ClassName "brackets") ]
+    [ HH.div props hs ]
 
 commas hs = Array.intercalate [ comma ] (pure <$> hs)
 
@@ -288,9 +353,9 @@ langle = makePunctuation "langle" "⟨"
 
 rangle = makePunctuation "rangle" "⟩"
 
-lbrace = makePunctuation "lbrace" "⟨"
+lbrace = makePunctuation "lbrace" "{"
 
-rbrace = makePunctuation "rbrace" "⟩"
+rbrace = makePunctuation "rbrace" "}"
 
 comma = makePunctuation "comma" ","
 
@@ -305,6 +370,8 @@ colon = makePunctuation "colon" ":"
 mapsto = makePunctuation "mapsto" "⇒"
 
 arrow = makePunctuation "arrow" "→"
+
+squigarrow = makePunctuation "squigarrow" "⟿"
 
 let_ = makePunctuation "let" "let"
 
@@ -323,6 +390,10 @@ period = makePunctuation "period" "."
 plus_ = makePunctuation "plus" "+"
 
 minus_ = makePunctuation "minus" "-"
+
+uparrow = makePunctuation "uparrow" "↑"
+
+downarrow = makePunctuation "downarrow" "↓"
 
 makePunctuation name symbol =
   HH.div

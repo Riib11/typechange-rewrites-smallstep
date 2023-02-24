@@ -1,3 +1,163 @@
-.app div {
+:root {
+  --background-color-change: rgb(255, 228, 165);
+  --border-change: 2px solid orange;
+
+  --background-color-hole-term: rgb(203, 255, 203);
+  --border-hole-term: 2px solid green;
+
+  --background-color-hole-type: rgb(252, 199, 255);
+  --border-hole-type: 2px solid rgb(242, 0, 255);
+
+  --node-padding: 0.1rem 0.2rem;
+  --node-margin: 0.1rem 0.2rem;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.app {
+  padding: 1rem;
+}
+
+.edits {
+  display: block;
+  padding: 1rem;
+}
+
+.edit {
+  cursor: pointer;
+  margin: 0.5rem;
+  padding: 0.2rem 0.4rem;
+  width: 10rem;
+
+  background-color: rgb(255, 199, 121);
+  border: 2px solid orange;
+}
+
+.edit:hover {
+  background-color: rgb(255, 226, 184);
+}
+
+
+.program {
+  display: block;
+  height: 20rem;
+  overflow-y: scroll;
+  padding: 1rem;
+}
+
+.program div {
   display: inline-block;
+}
+
+/* node */
+
+.node {
+  padding: var(--node-padding);
+  margin: var(--node-margin);
+
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.node:hover {
+  box-shadow: 0 0 0 1px black;
+}
+
+/* TODO: do a similar thing for CtxChangeTerm */
+
+.TypeChangeTerm {
+  border: var(--border-change);
+  background-color: var(--background-color-change);
+}
+
+.TypeChangeTerm-bod {
+  border: var(--border-change);
+  background-color: white;
+}
+
+.TypeChangeTerm-tych {
+  background-color: var(--background-color-change);
+  /* border: var(--border-change); */
+}
+
+.HoleTerm {
+  border: var(--border-hole-term);
+  background-color: var(--background-color-hole-term);
+  padding: 0;
+  margin: 0;
+}
+
+.TermHole {}
+
+.TypeHole {}
+
+.HoleType {
+  border: var(--border-hole-type);
+  background-color: var(--background-color-hole-type);
+  padding: 0;
+  margin: 0;
+}
+
+/* structure */
+
+.parens {
+  border: 2px solid black;
+  /* padding: var(--node-padding); */
+  margin: var(--node-margin);
+}
+
+.brackets {
+  border: 2px solid blue;
+  /* padding: var(--node-padding); */
+  margin: var(--node-margin);
+}
+
+/* punctuation */
+
+.punctuation-arrow {
+  margin: 0 0.5rem;
+}
+
+.punctuation-lambda {
+  margin-right: 0.5rem;
+  font-weight: bold;
+}
+
+.punctuation-colon {
+  margin: 0 0.5rem;
+}
+
+.punctuation-mapsto {
+  margin: 0 0.5rem;
+  font-weight: bold;
+}
+
+.punctuation-buf {
+  margin-right: 0.5rem;
+  font-weight: bold;
+}
+
+.punctuation-in {
+  margin: 0 0.5rem;
+  font-weight: bold;
+}
+
+.punctuation-let {
+  margin: 0 0.5rem;
+  font-weight: bold;
+}
+
+.punctuation-equal {
+  margin: 0 0.5rem;
+}
+
+.punctuation-space {
+  white-space: pre;
 }
